@@ -1,0 +1,4 @@
+v1.0.0 (2016-02-21)
+
+
+- added support for serial and TCP/IP BenQ projectors
