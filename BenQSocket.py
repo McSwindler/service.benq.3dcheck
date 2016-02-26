@@ -1,20 +1,14 @@
 import serial
 import time
 import re
-try:
-	import xbmc
-	from xbmc import log
-	from xbmc import LOGERROR
-	from xbmc import LOGDEBUG
-except:
-	import logging
-	from logging import ERROR as LOGERROR
-	from logging import DEBUG as LOGDEBUG
-
-	logging.basicConfig(level=LOGDEBUG)
-
-	def log(data, level):
-		logging.log(level, data)
+import xbmc,xbmcaddon
+from xbmc import log
+from xbmc import LOGERROR
+from xbmc import LOGDEBUG
+	
+__addon__ = xbmcaddon.Addon()
+__addonname__ = __addon__.getAddonInfo('name')
+__icon__ = __addon__.getAddonInfo('icon')
 
 class BenQSocket:
 	sock = None
@@ -27,7 +21,7 @@ class BenQSocket:
 			self.sock.baudrate = baudrate
 			self.sock.timeout = 0
 		except serial.serialutil.SerialException as e:
-			log('Cannot connect to serial port', LOGERROR)
+			self.notify()
 			log(str(e), LOGERROR)
 
 	def _send(self, payload):
@@ -36,7 +30,7 @@ class BenQSocket:
 			
 		send = self.sock.write(payload)
 		if send == 0:
-			log('Cannot connect to projector', LOGERROR)
+			self.notify()
 		self.sock.flush()
 		time.sleep(1)
 		return self._receive()
@@ -45,12 +39,16 @@ class BenQSocket:
 		timeout = time.time() + 10
 		buff = ''
 		while True:
-			r = self.sock.read(1)
+			try:
+				r = self.sock.read(1)
+			except serial.serialutil.SerialException as e:
+				self.notify()
+				log(str(e), LOGERROR)
 			buff += r
 			if buff.endswith('#\r\n'):
 				break
 			if r == '' and time.time() > timeout:
-				log('Cannot connect to projector', LOGERROR)
+				self.notify()
 				break
 		m = self._regex.findall(buff)
 		if not m:
@@ -76,3 +74,8 @@ class BenQSocket:
 				self.sock.close()
 		finally:
 			log('BenQSocket killed', LOGDEBUG)
+			
+	def notify(self, msg='Cannot connect to projector'):
+		xbmc.executebuiltin('Notification(%s, %s, %d, %s)'%(__addonname__, msg, 2000, __icon__))
+		log(msg, LOGERROR)
+		
